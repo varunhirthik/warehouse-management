@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Cafe Warehouse Management</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'cafe-brown': '#8B4513',
+                        'cafe-cream': '#F5F5DC',
+                        'cafe-gold': '#DAA520',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        .fade-in {
+            animation: fadeIn 0.5s ease-in;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .input-focus:focus {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139, 69, 19, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-cafe-cream to-orange-50 min-h-screen flex items-center justify-center p-4">
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div id="flash-messages" class="fixed top-4 left-4 right-4 z-50">
+                {% for category, message in messages %}
+                    <div class="mb-2 p-4 rounded-lg shadow-lg fade-in
+                        {% if category == 'error' %}bg-red-500 text-white
+                        {% elif category == 'success' %}bg-green-500 text-white
+                        {% else %}bg-blue-500 text-white{% endif %}">
+                        <div class="flex items-center justify-between">
+                            <span>{{ message }}</span>
+                            <button onclick="this.parentElement.parentElement.remove()" class="ml-4 text-white hover:text-gray-200">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Login Card -->
+    <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md fade-in">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <div class="bg-cafe-brown rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-coffee text-3xl text-cafe-gold"></i>
+            </div>
+            <h1 class="text-2xl font-bold text-cafe-brown mb-2">Cafe Manager</h1>
+            <p class="text-gray-600">Sign in to your account</p>
+        </div>
+
+        <!-- Login Form -->
+        <form method="POST" class="space-y-6">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-user mr-2 text-cafe-brown"></i>Username
+                </label>
+                <input type="text" id="username" name="username" required
+                       class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cafe-brown focus:border-transparent input-focus transition-all duration-200"
+                       placeholder="Enter your username">
+            </div>
+            
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-lock mr-2 text-cafe-brown"></i>Password
+                </label>
+                <input type="password" id="password" name="password" required
+                       class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cafe-brown focus:border-transparent input-focus transition-all duration-200"
+                       placeholder="Enter your password">
+            </div>
+            
+            <button type="submit" 
+                    class="w-full bg-gradient-to-r from-cafe-brown to-cafe-gold text-white py-4 px-6 rounded-lg font-medium hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200">
+                <i class="fas fa-sign-in-alt mr-2"></i>Sign In
+            </button>
+        </form>
+
+        <!-- Demo Credentials -->
+        <div class="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+            <h3 class="text-sm font-bold text-blue-800 mb-2">
+                <i class="fas fa-info-circle mr-2"></i>Demo Credentials
+            </h3>
+            <div class="text-xs text-blue-700 space-y-1">
+                <div><strong>Manager:</strong> username='manager', password='manager123'</div>
+                <div><strong>Beverages:</strong> username='beverages', password='bev123'</div>
+                <div><strong>Kitchen:</strong> username='kitchen', password='kit123'</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="text-center mt-8 text-sm text-gray-500">
+            <p>© 2025 Cafe Warehouse Management System</p>
+        </div>
+    </div>
+
+    <script>
+        // Auto-hide flash messages after 5 seconds
+        setTimeout(function() {
+            const flashMessages = document.getElementById('flash-messages');
+            if (flashMessages) {
+                flashMessages.style.opacity = '0';
+                setTimeout(() => flashMessages.remove(), 500);
+            }
+        }, 5000);
+
+        // Add some interactive effects
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('focus', function() {
+                this.parentElement.querySelector('label').style.color = '#8B4513';
+            });
+            
+            input.addEventListener('blur', function() {
+                this.parentElement.querySelector('label').style.color = '#374151';
+            });
+        });
+    </script>
+</body>
+</html>
