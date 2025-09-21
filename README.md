@@ -1,16 +1,35 @@
-# ☕ Cafe Warehouse Management System v1.0
+# ☕ Cafe Warehouse Management System v2.0
 
-A simple, mobile-first web application for managing cafe inventory across multiple departments and tracking profit margins in real-time.
+A secure, role-based web application for managing cafe inventory across multiple departments with user authentication and profit tracking.
+
+## 🔐 **NEW: Role-Based Access Control**
+
+The system now supports **three user roles** with different access levels:
+
+### **👑 Manager Role**
+- **Full Access**: Can view and manage all departments
+- **User Management**: Create and manage staff accounts
+- **Complete Dashboard**: See profits and inventory across all departments
+- **All Permissions**: Can add stock and record sales for any department
+
+### **👥 Department Staff Roles**
+- **Beverages Staff**: Limited access to Beverages & Snacks department only
+- **Kitchen Staff**: Limited access to Kitchen department only
+- **Restricted View**: Can only see their department's data
+- **Department Operations**: Can only add stock and record sales for their assigned department
 
 ## 🎯 Features
 
+- **🔐 Secure Authentication**: Login system with role-based access control
 - **Multi-Department Inventory**: Separate tracking for Beverages & Snacks and Kitchen departments
 - **Real-Time Stock Management**: Add stock imports and record sales instantly
 - **Profit Tracking**: Automatic calculation of profit margins per product and department
 - **Mobile-First Design**: Clean, responsive interface optimized for mobile devices
-- **User-Friendly Interface**: No technical knowledge required - designed for cafe managers
+- **User-Friendly Interface**: No technical knowledge required - designed for cafe staff
 - **Live Dashboard**: Real-time updates with stock levels and profit figures
 - **Low Stock Alerts**: Visual warnings when inventory runs low (< 5 units)
+- **Session Management**: 30-minute sessions with persistent login capability
+- **User Management**: Manager can create and manage staff accounts
 
 ## 🚀 Quick Start
 
@@ -43,9 +62,34 @@ python app.py
 
 4. **Open your browser** and go to: `http://localhost:5000`
 
-## 📱 How to Use
+## � Login Credentials
 
-### Main Dashboard
+The system comes with three default accounts for immediate testing:
+
+| Role | Username | Password | Access Level |
+|------|----------|----------|--------------|
+| **Manager** | `manager` | `manager123` | Full access to all departments |
+| **Beverages Staff** | `beverages` | `bev123` | Beverages & Snacks department only |
+| **Kitchen Staff** | `kitchen` | `kit123` | Kitchen department only |
+
+## �📱 How to Use
+
+### First Time Access
+1. **Navigate to** `http://localhost:5000`
+2. **You'll be redirected** to the login page
+3. **Choose your role** and use the credentials above
+4. **Click "Sign In"** to access the dashboard
+
+### Manager Dashboard
+- **Full Control**: View all departments and their inventory
+- **User Management**: Click the user icon → "Manage Users" to create new staff accounts
+- **Complete Access**: Add stock and record sales for any department
+- **Financial Overview**: See total profits across all departments
+
+### Department Staff Dashboard
+- **Department-Specific**: Only see your assigned department
+- **Limited Operations**: Can only manage inventory for your department
+- **Focused Interface**: Simplified view showing only relevant products
 - View current stock levels for all products
 - See total profit for each department
 - Monitor overall cafe profit
@@ -92,12 +136,42 @@ warehouse/
 - **InventoryTransactions**: Log all stock movements and sales
 
 ### API Endpoints
-- `GET /` - Main dashboard page
-- `GET /dashboard` - Get all inventory and profit data (JSON)
-- `POST /log_transaction` - Log stock imports or sales (JSON)
-- `GET /products/<department_id>` - Get products for specific department (JSON)
+- `GET /login` - Login page
+- `POST /login` - Handle login authentication
+- `GET /logout` - Logout and clear session
+- `GET /` - Main dashboard page (requires authentication)
+- `GET /dashboard` - Get all inventory and profit data (JSON, role-filtered)
+- `POST /log_transaction` - Log stock imports or sales (JSON, role-protected)
+- `GET /products/<department_id>` - Get products for department (JSON, role-protected)
+- `GET /users` - Get all users (JSON, manager only)
+- `POST /users` - Create new user (JSON, manager only)
+- `GET /user-info` - Get current user information (JSON)
 
-## 🔧 Customization
+## � User Management (Manager Only)
+
+### Creating New Staff Accounts
+1. **Login as Manager** using the manager credentials
+2. **Click the user icon** in the top-right corner
+3. **Select "Manage Users"** from the dropdown menu
+4. **Fill out the form** with the new user's details:
+   - Username (must be unique)
+   - Full Name
+   - Password
+   - Role (Manager, Beverages Staff, or Kitchen Staff)
+   - Department (auto-selected for staff roles)
+5. **Click "Add User"** to create the account
+
+### User Roles Explained
+- **Manager**: Can access everything, manage users, see all financial data
+- **Beverages Staff**: Can only work with Beverages & Snacks department
+- **Kitchen Staff**: Can only work with Kitchen department
+
+### Session Management
+- **Session Duration**: 30 minutes of inactivity before auto-logout
+- **Persistent Login**: Users can stay logged in on their devices
+- **Secure Logout**: Click user icon → "Logout" to end session safely
+
+## �🔧 Customization
 
 ### Adding New Products
 1. Stop the application (Ctrl+C)
@@ -165,14 +239,23 @@ If you encounter any issues:
 3. Make sure you're in the correct project folder
 4. Try restarting the application
 
-## 🔒 Security Note
+## 🔒 Security Features
 
-This is a prototype application designed for demonstration purposes. For production use:
-- Add user authentication
+**✅ Already Implemented:**
+- ✅ **User Authentication**: Secure login system with hashed passwords
+- ✅ **Role-Based Access Control**: Different permissions for different user types
+- ✅ **Session Management**: 30-minute timeout with secure session handling
+- ✅ **API Protection**: All endpoints require authentication and proper permissions
+- ✅ **Input Validation**: Form validation and data sanitization
+
+**🔧 For Production Use:**
+- Use environment variables for secret keys
 - Use a production database (PostgreSQL, MySQL)
 - Deploy with a production WSGI server (Gunicorn, uWSGI)
-- Enable HTTPS
-- Add input validation and sanitization
+- Enable HTTPS with SSL certificates
+- Add rate limiting and additional security headers
+- Implement password complexity requirements
+- Add audit logging for user actions
 
 ## 📝 License
 
@@ -180,7 +263,32 @@ This project is created for educational and demonstration purposes. Feel free to
 
 ---
 
-**Built with:** Python Flask, SQLite, HTML5, Tailwind CSS, JavaScript  
-**Version:** 1.0  
+**Built with:** Python Flask, Flask-Login, SQLite, HTML5, Tailwind CSS, JavaScript  
+**Version:** 2.0 (with Authentication & Role-Based Access Control)  
 **Author:** Cafe Warehouse Management System  
 **Date:** September 2025
+
+---
+
+## 🎉 **What's New in v2.0**
+
+### 🔐 **Complete Authentication System**
+- **Secure Login**: SHA-256 password hashing
+- **Role-Based Access**: Manager, Beverages Staff, Kitchen Staff
+- **Session Management**: 30-minute sessions with persistent login
+- **Mobile-Optimized**: Touch-friendly login interface
+
+### 👑 **Manager Features**
+- **User Management**: Create and manage staff accounts through web interface
+- **Full Dashboard Access**: View all departments and complete financial data
+- **Complete Control**: Manage inventory across all departments
+
+### 👥 **Staff Features** 
+- **Department-Specific Access**: Staff can only access their assigned department
+- **Simplified Interface**: Clean, focused view of relevant products only
+- **Role-Based Restrictions**: Cannot access other departments' data
+
+### 🛡️ **Security Enhancements**
+- **API Protection**: All endpoints require proper authentication
+- **Permission Checks**: Users can only access their authorized data
+- **Secure Sessions**: Automatic timeout and logout functionality
