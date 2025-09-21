@@ -1,9 +1,52 @@
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for, session, flash
+from flask_login import LoginManager, UserMixin, login_user, logout_user, login_required, current_user
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+import hashlib
 
 app = Flask(__name__)
+app.secret_key = 'cafe-warehouse-secret-key-2025'  # Change this in production
+app.permanent_session_lifetime = timedelta(minutes=30)  # 30 minute sessions
+
+# Initialize Flask-Login
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = 'Please log in to access this page.'
+
+def hash_password(password):
+    """Hash a password using SHA-256"""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+class User(UserMixin):
+    def __init__(self, id, username, role, department_id, full_name):
+        self.id = id
+        self.username = username
+        self.role = role
+        self.department_id = department_id
+        self.full_name = full_name
+    
+    def is_manager(self):
+        return self.role == 'manager'
+    
+    def can_access_department(self, dept_id):
+        if self.is_manager():
+            return True
+        return self.department_id == dept_id
+
+@login_manager.user_loader
+def load_user(user_id):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    cursor.execute('SELECT id, username, role, department_id, full_name FROM users WHERE id = ?', (user_id,))
+    user_data = cursor.fetchone()
+    conn.close()
+    
+    if user_data:
+        return User(user_data['id'], user_data['username'], user_data['role'], 
+                   user_data['department_id'], user_data['full_name'])
+    return None
 
 def get_db_connection():
     """Get database connection"""
@@ -11,12 +54,60 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row  # This allows us to access columns by name
     return conn
 
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Handle user login"""
+    if request.method == 'POST':
+        username = request.form['username']
+        password = request.form['password']
+        password_hash = hash_password(password)
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT id, username, role, department_id, full_name 
+            FROM users 
+            WHERE username = ? AND password_hash = ?
+        ''', (username, password_hash))
+        
+        user_data = cursor.fetchone()
+        
+        if user_data:
+            # Update last login
+            cursor.execute('UPDATE users SET last_login = ? WHERE id = ?', 
+                         (datetime.now().isoformat(), user_data['id']))
+            conn.commit()
+            
+            user = User(user_data['id'], user_data['username'], user_data['role'], 
+                       user_data['department_id'], user_data['full_name'])
+            login_user(user, remember=True)
+            session.permanent = True
+            
+            flash(f'Welcome back, {user.full_name}!', 'success')
+            return redirect(url_for('index'))
+        else:
+            flash('Invalid username or password', 'error')
+        
+        conn.close()
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+@login_required
+def logout():
+    """Handle user logout"""
+    logout_user()
+    flash('You have been logged out successfully', 'info')
+    return redirect(url_for('login'))
+
 @app.route('/')
+@login_required
 def index():
     """Serve the main dashboard page"""
     return render_template('index.html')
 
 @app.route('/log_transaction', methods=['POST'])
+@login_required
 def log_transaction():
     """
     Log a transaction (either import or sale)
@@ -43,6 +134,10 @@ def log_transaction():
         quantity_change = data['quantity_change']
         transaction_type = data['type']
         selling_price = data.get('selling_price', 0.0)
+        
+        # Check if user can access this department
+        if not current_user.can_access_department(department_id):
+            return jsonify({'error': 'Access denied to this department'}), 403
         
         # Validate transaction type
         if transaction_type not in ['import', 'sale']:
@@ -111,6 +206,7 @@ def log_transaction():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/dashboard', methods=['GET'])
+@login_required
 def dashboard():
     """
     Get dashboard data including current inventory and profit per department
@@ -139,9 +235,14 @@ def dashboard():
         conn = get_db_connection()
         cursor = conn.cursor()
         
-        # Get all departments
-        cursor.execute('SELECT id, name FROM departments ORDER BY name')
-        departments = cursor.fetchall()
+        # Get departments based on user role
+        if current_user.is_manager():
+            cursor.execute('SELECT id, name FROM departments ORDER BY name')
+            departments = cursor.fetchall()
+        else:
+            cursor.execute('SELECT id, name FROM departments WHERE id = ? ORDER BY name', 
+                         (current_user.department_id,))
+            departments = cursor.fetchall()
         
         dashboard_data = {
             'departments': [],
@@ -210,8 +311,13 @@ def dashboard():
         return jsonify({'error': str(e)}), 500
 
 @app.route('/products/<int:department_id>', methods=['GET'])
+@login_required
 def get_products_by_department(department_id):
     """Get all products for a specific department with their current stock"""
+    # Check if user can access this department
+    if not current_user.can_access_department(department_id):
+        return jsonify({'error': 'Access denied to this department'}), 403
+    
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
@@ -244,6 +350,116 @@ def get_products_by_department(department_id):
         
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/users', methods=['GET'])
+@login_required
+def get_users():
+    """Get all users (manager only)"""
+    if not current_user.is_manager():
+        return jsonify({'error': 'Access denied. Manager role required.'}), 403
+    
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute('''
+            SELECT u.id, u.username, u.role, u.full_name, u.created_at, u.last_login,
+                   d.name as department_name
+            FROM users u
+            LEFT JOIN departments d ON u.department_id = d.id
+            ORDER BY u.role, u.username
+        ''')
+        
+        users = cursor.fetchall()
+        
+        user_list = []
+        for user in users:
+            user_list.append({
+                'id': user['id'],
+                'username': user['username'],
+                'role': user['role'],
+                'full_name': user['full_name'],
+                'department_name': user['department_name'] or 'All Departments',
+                'created_at': user['created_at'],
+                'last_login': user['last_login']
+            })
+        
+        conn.close()
+        return jsonify({'users': user_list})
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/users', methods=['POST'])
+@login_required
+def create_user():
+    """Create a new user (manager only)"""
+    if not current_user.is_manager():
+        return jsonify({'error': 'Access denied. Manager role required.'}), 403
+    
+    try:
+        data = request.get_json()
+        
+        required_fields = ['username', 'password', 'role', 'full_name']
+        for field in required_fields:
+            if field not in data:
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+        
+        username = data['username']
+        password = data['password']
+        role = data['role']
+        full_name = data['full_name']
+        department_id = data.get('department_id')
+        
+        if role not in ['manager', 'beverages', 'kitchen']:
+            return jsonify({'error': 'Invalid role. Must be manager, beverages, or kitchen'}), 400
+        
+        if role != 'manager' and not department_id:
+            return jsonify({'error': 'Department ID required for non-manager roles'}), 400
+        
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Check if username already exists
+        cursor.execute('SELECT id FROM users WHERE username = ?', (username,))
+        if cursor.fetchone():
+            conn.close()
+            return jsonify({'error': 'Username already exists'}), 400
+        
+        # Create the user
+        password_hash = hash_password(password)
+        current_time = datetime.now().isoformat()
+        
+        cursor.execute('''
+            INSERT INTO users (username, password_hash, role, department_id, full_name, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (username, password_hash, role, department_id, full_name, current_time))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'message': f'User {username} created successfully',
+            'username': username,
+            'role': role,
+            'full_name': full_name
+        }), 201
+        
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/user-info', methods=['GET'])
+@login_required
+def get_current_user_info():
+    """Get current user information"""
+    return jsonify({
+        'id': current_user.id,
+        'username': current_user.username,
+        'role': current_user.role,
+        'full_name': current_user.full_name,
+        'department_id': current_user.department_id,
+        'is_manager': current_user.is_manager()
+    })
 
 # Error handlers
 @app.errorhandler(404)
